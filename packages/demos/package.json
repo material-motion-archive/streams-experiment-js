@@ -1,0 +1,34 @@
+{
+  "name": "material-motion-streams-demos",
+  "version": "0.0.0",
+  "scripts": {
+    "start": "node ./devServer.js",
+    "clean": "rm -rf ./site/dist/*; mkdir -p ./site/dist/",
+    "build": "yarn run clean; node ./build.js",
+    "deploy": "yarn run build; $( yarn bin )/firebase deploy"
+  },
+  "main": "src/index.ts",
+  "dependencies": {
+    "@cycle/dom": "14.1.0",
+    "@cycle/xstream-run": "3.1.0",
+    "rebound": "0.0.13",
+    "snabbdom-jsx": "0.3.1",
+    "xstream": "8.0.0"
+  },
+  "devDependencies": {
+    "firebase-tools": "3.2.0",
+    "pundle-dev": "1.1.11",
+    "typescript": "next",
+    "typescript-pundle": "1.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com:material-motion/material-motion-streams-experiment-js.git"
+  },
+  "author": "The Material Motion Authors (see AUTHORS)",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/material-motion/material-motion-streams-experiment-js/issues/"
+  },
+  "homepage": "https://github.com/material-motion/material-motion-streams-experiment-js/#readme"
+}

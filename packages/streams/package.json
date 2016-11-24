@@ -1,6 +1,9 @@
 {
   "name": "material-motion-streams-experiment",
+  "description": "An exploration into reactively implementing the Material Motion architecture.",
   "version": "0.0.0",
+  "main": "dist/index.js",
+  "types": "src/index.ts",
   "scripts": {
   },
   "dependencies": {
