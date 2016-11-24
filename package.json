@@ -1,0 +1,20 @@
+{
+  "name": "material-motion-streams-experiment",
+  "version": "0.0.0",
+  "scripts": {
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com:material-motion/material-motion-streams-experiment-js.git"
+  },
+  "author": "The Material Motion Authors (see AUTHORS)",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/material-motion/material-motion-streams-experiment-js/issues/"
+  },
+  "homepage": "https://github.com/material-motion/material-motion-streams-experiment-js/#readme"
+}
