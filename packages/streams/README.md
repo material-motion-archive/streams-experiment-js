@@ -18,10 +18,11 @@ If we can express [motion primitives](https://material-motion.github.io/material
 
 - cap({ min, max, resistance })
 - pluck
-- interpolate({ from, to })
 - shift({ offset })
 - scale({ coefficient })
-- invert
+- interpolate({ in: { from, to }, out: { from, to }})
+- normalize({ from, to })
+- invertNormalized
 - debounce
 - distinct
 - threshold: measure if the incoming stream is >, >=, <, or <= a particular threshold; useful for mapping pointerStream.pointers.length to isAtRest or triggering an animation
