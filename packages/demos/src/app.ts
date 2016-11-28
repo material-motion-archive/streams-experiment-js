@@ -14,6 +14,8 @@
  *  under the License.
  */
 
+import 'material-motion-streams-experiment';
+
 import pairwise from 'xstream/extra/pairwise'
 import sampleCombine from 'xstream/extra/sampleCombine'
 
@@ -74,6 +76,7 @@ function addPoints([prev, next]) {
   };
 }
 
+// TODO: make this abstract to work for any { translate, rotate, scale }
 function getDrag$FromDOMSource(domSource) {
   return domSource.events('pointerdown').map(
     downEvent => {
@@ -148,28 +151,26 @@ export function spring({ bounciness, speed, initialValue = 0 }) {
 }
 
 export function App(sources: Sources): Sinks {
-  const drag$ = getDrag$FromDOMSource(
+  const dragY$ = getDrag$FromDOMSource(
     sources.DOM.select('.draggable')
-  );
+  ).pluck({ key: 'y' });
+
+  const circlePositionY = 0;
+  const squarePositionY = 300;
+  let destinationY = squarePositionY;
 
   // should springs be in App or in a driver? ¯\_(ツ)_/¯
   const springY$ = spring({
     speed: 50,
     bounciness: 3,
-    initialValue: 0,
+    initialValue: squarePositionY,
   })
 
-  const springX$ = spring({
+  const springCornerRadius$ = spring({
     speed: 50,
     bounciness: 3,
     initialValue: 0,
-  })
-
-  const springLocation$ = Stream.combine(springX$, springY$).map(
-    ([x, y]) => (
-      { x, y }
-    )
-  );
+  });
 
   // drags are relative to the last known location, but location$ doesn't exist
   // yet, so we define it in terms of a proxy that will be filled later with a
@@ -177,37 +178,54 @@ export function App(sources: Sources): Sinks {
   //
   // Proxying drag instead of location, because proxy.imitate doesn't work with
   // memory streams like startWith
-  const combinedDrag$Proxy = Stream.create();
+  const combinedDragY$Proxy = Stream.create();
 
-  // technically you want to start from the last location, not the last
-  // pointerup.  perhaps drags should have a pointers property?
-  sources.DOM.select('.draggable').events('pointerup').map(getPointerLocationFromEvent).subscribe({
-    next({ x, y }) {
-      springX$.update({ currentValue: x, endValue: 0 });
-      springY$.update({ currentValue: y, endValue: 0 });
+  const locationY$ = Stream.merge(
+    springY$,
+    combinedDragY$Proxy,
+  ).startWith(
+    squarePositionY
+
+  // TODO: there should be different thresholds for circle->square and
+  // square->circle
+  //
+  // how would you visualize that in a tool?
+  ).threshold({
+    breakpoint: squarePositionY - 96,
+    forward() {
+      springCornerRadius$.update({ endValue: 0 });
+      destinationY = squarePositionY;
+    },
+    backward() {
+      springCornerRadius$.update({ endValue: 1 });
+      destinationY = circlePositionY;
     }
   });
 
-  const location$ = Stream.merge(
-    springLocation$,
-    combinedDrag$Proxy,
-  ).startWith(
-    {
-      x: 0,
-      y: 0,
-    }
-  );
-
-  combinedDrag$Proxy.imitate(
-    drag$.compose(
-      sampleCombine(location$)
+  combinedDragY$Proxy.imitate(
+    dragY$.compose(
+      sampleCombine(locationY$)
     ).map(
-      addPoints
+      ([dragY, locationY]) => dragY + locationY
     )
   );
 
-  const vtree$ = location$.map(
-    location => (
+  // TODO: trigger an explicit state here (e.g. `circle`) and let the rest of
+  // the app react to it.  tap then becomes state: otherState and can reuse the
+  // same logic
+  sources.DOM.select('.draggable').events('pointerup').compose(
+    sampleCombine(locationY$)
+  ).subscribe({
+    next([, y) {
+      springY$.update({ currentValue: y, endValue: destinationY });
+    }
+  });
+
+  const vtree$ = Stream.combine(
+    locationY$,
+    springCornerRadius$,
+  ).map(
+    ([y, cornerRadius]) => (
       <div
         className = 'draggable'
         attrs = {
@@ -219,16 +237,17 @@ export function App(sources: Sources): Sinks {
           {
             touchAction: 'none',
             backgroundColor: '#8BC34A',
-            width: '56px',
-            height: '56px',
-            borderRadius: '28px',
+            position: 'relative',
+            width: '300px',
+            height: '300px',
+            borderRadius: (50 * cornerRadius).toFixed() + '%',
             boxShadow: `
               0 3px 1px -2px rgba(0, 0, 0, 0.2),
               0 2px 2px 0 rgba(0, 0, 0, 0.14),
               0 1px 5px 0 rgba(0, 0, 0, 0.12)
             `,
             willChange: 'transform',
-            transform: `translate(${ location.x }px, ${ location.y }px)`,
+            transform: `translateY(${ y }px)`,
           }
         }
       />

@@ -11,6 +11,7 @@
   "dependencies": {
     "@cycle/dom": "14.1.0",
     "@cycle/xstream-run": "3.1.0",
+    "material-motion-streams-experiment": "0.0.0",
     "rebound": "0.0.13",
     "snabbdom-jsx": "0.3.1",
     "xstream": "8.0.0"

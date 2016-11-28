@@ -110,6 +110,10 @@ function makeSimpleOperator(operator) {
     operator = operator.bind({});
     const parentStream = this;
 
+    const streamFactory = parentStream instanceof MemoryStream
+      ? Stream.createWithMemory
+      : Stream.create;
+
     let prev;
     let dispatch;
     let subscription;
@@ -117,7 +121,7 @@ function makeSimpleOperator(operator) {
     let lastValue;
     let lastConfig = {};
 
-    const stream = Stream.create({
+    const stream = streamFactory({
       start(listener:Listener<any>) {
         dispatch = () => {
           try {
