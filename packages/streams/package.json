@@ -5,10 +5,14 @@
   "main": "dist/index.js",
   "types": "src/index.ts",
   "scripts": {
+    "clean": "rm -rf ./site/dist/*; mkdir -p ./site/dist/",
+    "build": "yarn run clean; $( yarn bin )/tsc"
   },
   "dependencies": {
+    "xstream": "8.0.0"
   },
   "devDependencies": {
+    "typescript": "2.0.3"
   },
   "repository": {
     "type": "git",
