@@ -42,6 +42,7 @@ server.pundle.loadPlugins([
           jsx: 'react',
           jsxFactory: 'html',
           strictNullChecks: true,
+          target: "es5",
         }
       }
     }
