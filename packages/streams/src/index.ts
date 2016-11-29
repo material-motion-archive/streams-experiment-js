@@ -123,6 +123,25 @@ function makeSimpleOperator(operator) {
 
     const stream = streamFactory({
       start(listener:Listener<any>) {
+        Object.entries(operatorConfig).forEach(
+          ([key, valueOrStream]) => {
+            if (valueOrStream.subscribe) {
+              configSubscriptions[key] = valueOrStream.subscribe({
+                next(value) {
+                  lastConfig[key] = value;
+
+                  // Wait until parentStream is subscribed to before dispatching
+                  if (dispatch) {
+                    dispatch();
+                  }
+                }
+              });
+            } else {
+              lastConfig[key] = valueOrStream;
+            }
+          }
+        );
+
         dispatch = () => {
           try {
             listener.next(
@@ -147,21 +166,6 @@ function makeSimpleOperator(operator) {
             error(error: Error) {
               listener.error(error);
             },
-          }
-        );
-
-        Object.entries(operatorConfig).forEach(
-          ([key, valueOrStream]) => {
-            if (valueOrStream.subscribe) {
-              configSubscriptions[key] = valueOrStream.subscribe(
-                value => {
-                  lastConfig[key] = value;
-                  dispatch();
-                }
-              );
-            } else {
-              lastConfig[key] = valueOrStream;
-            }
           }
         );
       },
