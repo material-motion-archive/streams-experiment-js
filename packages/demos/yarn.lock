@@ -17,6 +17,10 @@
     snabbdom-selector "^0.4.0"
     snabbdom-to-html "^2.0.1"
 
+"@cycle/isolate@^1.4.0":
+  version "1.4.0"
+  resolved "https://registry.yarnpkg.com/@cycle/isolate/-/isolate-1.4.0.tgz#7cd7908a280e0695467b41c1171b1e37522233df"
+
 "@cycle/xstream-adapter@3.x.x":
   version "3.0.4"
   resolved "https://registry.yarnpkg.com/@cycle/xstream-adapter/-/xstream-adapter-3.0.4.tgz#54c440b02ef3c8433cdb2d31082c8e5d0dd4d93a"
