@@ -23,10 +23,12 @@ import { DOMSource } from '@cycle/dom/rxjs-typings';
 import { VNode } from '@cycle/dom';
 import { html } from 'snabbdom-jsx';
 
+import Slider from './Slider';
+
 import {
   Stream,
   Listener,
-} from 'xstream'
+} from 'xstream';
 
 import {
   SpringConfig,
@@ -150,10 +152,40 @@ export function spring({ bounciness, speed, initialValue = 0 }) {
   return result;
 }
 
-export function App(sources: Sources): Sinks {
+export function App({ DOM }: Sources): Sinks {
   const dragY$ = getDrag$FromDOMSource(
-    sources.DOM.select('.draggable')
+    DOM.select('.draggable')
   ).pluck({ key: 'y' });
+
+  const {
+    DOM: breakpointSliderDOM$,
+    value: breakpointSliderValue$,
+  } = Slider({
+    DOM,
+    props: Stream.of({
+      label: 'Breakpoint',
+      initialValue: 96,
+      units: 'dp',
+      min: 0,
+      max: 300,
+      decimals: 0,
+    })
+  });
+
+  const {
+    DOM: positionSliderDOM$,
+    value: positionSliderValue$,
+  } = Slider({
+    DOM,
+    props: Stream.of({
+      label: 'Position',
+      initialValue: 300,
+      units: 'dp',
+      min: 0,
+      max: 900,
+      decimals: 0,
+    })
+  });
 
   const circlePositionY = 0;
   const squarePositionY = 300;
@@ -191,7 +223,10 @@ export function App(sources: Sources): Sinks {
   //
   // how would you visualize that in a tool?
   ).threshold({
-    breakpoint: squarePositionY - 96,
+    breakpoint: positionSliderValue$.shift({
+      offset: breakpointSliderValue$,
+      subtract: true,
+    }),
     forward() {
       springCornerRadius$.update({ endValue: 0 });
       destinationY = squarePositionY;
@@ -213,10 +248,10 @@ export function App(sources: Sources): Sinks {
   // TODO: trigger an explicit state here (e.g. `circle`) and let the rest of
   // the app react to it.  tap then becomes state: otherState and can reuse the
   // same logic
-  sources.DOM.select('.draggable').events('pointerup').compose(
+  DOM.select('.draggable').events('pointerup').compose(
     sampleCombine(locationY$)
   ).subscribe({
-    next([, y) {
+    next([, y]) {
       springY$.update({ currentValue: y, endValue: destinationY });
     }
   });
@@ -224,39 +259,66 @@ export function App(sources: Sources): Sinks {
   const vtree$ = Stream.combine(
     locationY$,
     springCornerRadius$,
+    positionSliderDOM$,
+    breakpointSliderDOM$,
   ).map(
-    ([y, cornerRadius]) => (
+    ([
+      y,
+      cornerRadius,
+      positionSliderDOM,
+      breakpointSliderDOM
+    ]) => (
       <div
-        className = 'draggable'
-        attrs = {
-          {
-            'touch-action': 'none'
-          }
-        }
         style = {
           {
-            touchAction: 'none',
-            backgroundColor: '#8BC34A',
-            position: 'relative',
-            width: '300px',
-            height: '300px',
-            borderRadius: (50 * cornerRadius).toFixed() + '%',
-            boxShadow: `
-              0 3px 1px -2px rgba(0, 0, 0, 0.2),
-              0 2px 2px 0 rgba(0, 0, 0, 0.14),
-              0 1px 5px 0 rgba(0, 0, 0, 0.12)
-            `,
-            willChange: 'transform',
-            transform: `translateY(${ y }px)`,
+            display: 'flex',
+            flexDirection: 'row',
           }
         }
-      />
+      >
+        <div
+          className = 'draggable'
+          attrs = {
+            {
+              'touch-action': 'none'
+            }
+          }
+          style = {
+            {
+              touchAction: 'none',
+              backgroundColor: '#8BC34A',
+              position: 'relative',
+              width: '300px',
+              height: '300px',
+              borderRadius: (50 * cornerRadius).toFixed() + '%',
+              boxShadow: `
+                0 3px 1px -2px rgba(0, 0, 0, 0.2),
+                0 2px 2px 0 rgba(0, 0, 0, 0.14),
+                0 1px 5px 0 rgba(0, 0, 0, 0.12)
+              `,
+              willChange: 'transform',
+              transform: `translateY(${ y }px)`,
+            }
+          }
+        />
+        <div
+          style = {
+            {
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'stretch',
+              flex: 1,
+            }
+          }
+        >
+          { positionSliderDOM }
+          { breakpointSliderDOM }
+        </div>
+      </div>
     )
   );
 
-  const sinks = {
+  return {
     DOM: vtree$
   };
-
-  return sinks;
 }
