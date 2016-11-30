@@ -187,9 +187,15 @@ export function App({ DOM }: Sources): Sinks {
     })
   });
 
-  const circlePositionY = 0;
-  const squarePositionY = 300;
+  let circlePositionY = 0;
+  let squarePositionY = 300;
   let destinationY = squarePositionY;
+
+  positionSliderValue$.subscribe({
+    next(nextSquarePosition) {
+      squarePositionY = nextSquarePosition;
+    }
+  });
 
   // should springs be in App or in a driver? ¯\_(ツ)_/¯
   const springY$ = spring({
@@ -215,6 +221,7 @@ export function App({ DOM }: Sources): Sinks {
   const locationY$ = Stream.merge(
     springY$,
     combinedDragY$Proxy,
+    positionSliderValue$,
   ).startWith(
     squarePositionY
 
