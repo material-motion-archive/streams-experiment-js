@@ -16,6 +16,7 @@
 
 import 'material-motion-streams-experiment';
 
+import dropRepeats from 'xstream/extra/dropRepeats'
 import pairwise from 'xstream/extra/pairwise'
 import sampleCombine from 'xstream/extra/sampleCombine'
 
@@ -123,11 +124,15 @@ export function spring({ bounciness, speed, initialValue = 0 }) {
 
   result.update = function({ currentValue, endValue, isAtRest = false, bounciness, speed }) {
     if (currentValue !== undefined) {
-      spring.setCurrentValue(currentValue, !isAtRest);
+      spring.setCurrentValue(currentValue);
     }
 
     if (endValue !== undefined) {
       spring.setEndValue(endValue);
+    }
+
+    if (isAtRest) {
+      spring.setAtRest();
     }
 
     let updateConfig = false;
@@ -159,7 +164,7 @@ export function App({ DOM }: Sources): Sinks {
 
   const {
     DOM: breakpointSliderDOM$,
-    value: breakpointSliderValue$,
+    value: breakpoint$,
   } = Slider({
     DOM,
     props: Stream.of({
@@ -172,14 +177,16 @@ export function App({ DOM }: Sources): Sinks {
     })
   });
 
+  const initialPosition = 300;
+
   const {
-    DOM: positionSliderDOM$,
-    value: positionSliderValue$,
+    DOM: squarePositionSliderDOM$,
+    value: squarePosition$,
   } = Slider({
     DOM,
     props: Stream.of({
-      label: 'Position',
-      initialValue: 300,
+      label: 'Square position',
+      initialValue: initialPosition,
       units: 'dp',
       min: 0,
       max: 900,
@@ -187,21 +194,12 @@ export function App({ DOM }: Sources): Sinks {
     })
   });
 
-  let circlePositionY = 0;
-  let squarePositionY = 300;
-  let destinationY = squarePositionY;
-
-  positionSliderValue$.subscribe({
-    next(nextSquarePosition) {
-      squarePositionY = nextSquarePosition;
-    }
-  });
-
   // should springs be in App or in a driver? ¯\_(ツ)_/¯
   const springY$ = spring({
     speed: 50,
     bounciness: 3,
-    initialValue: squarePositionY,
+    // if springs accepted streams as input, initialValue would be squarePosition$
+    initialValue: initialPosition,
   })
 
   const springCornerRadius$ = spring({
@@ -221,28 +219,10 @@ export function App({ DOM }: Sources): Sinks {
   const locationY$ = Stream.merge(
     springY$,
     combinedDragY$Proxy,
-    positionSliderValue$,
+    squarePosition$,
   ).startWith(
-    squarePositionY
-
-  // TODO: there should be different thresholds for circle->square and
-  // square->circle
-  //
-  // how would you visualize that in a tool?
-  ).threshold({
-    breakpoint: positionSliderValue$.shift({
-      offset: breakpointSliderValue$,
-      subtract: true,
-    }),
-    forward() {
-      springCornerRadius$.update({ endValue: 0 });
-      destinationY = squarePositionY;
-    },
-    backward() {
-      springCornerRadius$.update({ endValue: 1 });
-      destinationY = circlePositionY;
-    }
-  });
+    initialPosition
+  );
 
   combinedDragY$Proxy.imitate(
     dragY$.compose(
@@ -252,27 +232,86 @@ export function App({ DOM }: Sources): Sinks {
     )
   );
 
-  // TODO: trigger an explicit state here (e.g. `circle`) and let the rest of
-  // the app react to it.  tap then becomes state: otherState and can reuse the
-  // same logic
+  // If you're within `breakpoint` of an end, you are in that state.  If you no
+  // longer are, show a preview of the other state, and transition to it on
+  // release.
+  //
+  // Possible states:
+  // - A
+  // - A /w B preview
+  // - B
+  // - B /w A preview
+  //
+  // TODO: provide an abstraction like "threshold" to handle these state
+  // transitions with symmetric breakpoints
+  //
+  // The following is not the most efficient way to model that, but it's a way.
+
+  const isCircle$ = Stream.combine(locationY$, breakpoint$).map(
+    ([locationY, breakpoint]) => locationY < breakpoint
+  ).compose(dropRepeats()).remember();
+
+  const isSquare$ = Stream.combine(locationY$, breakpoint$, squarePosition$).map(
+    ([locationY, breakpoint, squarePosition]) => locationY > (squarePosition - breakpoint)
+  ).compose(dropRepeats()).remember();
+
+  // there appears to be a bug where prev and next are always equal, so wasCircle + !isSquare doesn't trigger
+  const showCircle$ = Stream.combine(isCircle$, isSquare$).compose(pairwise).map(
+    ([prev, next]) => {
+      const [isCircle, isSquare] = next;
+      const [wasCircle, wasSquare] = prev;
+
+      if (isCircle) {
+        return true;
+      } else if (isSquare) {
+        return false;
+      } else if (wasCircle) {
+        return false;
+      } else {
+        return true;
+      }
+    }
+  );
+
+  showCircle$.subscribe({
+    next(showCircle) {
+      springCornerRadius$.update({
+        endValue: showCircle
+          ? 1
+          : 0
+      })
+    },
+  });
+
+  DOM.select('.draggable').events('pointerdown').subscribe({
+    next() {
+      springY$.update({ isAtRest: true })
+    }
+  });
+
   DOM.select('.draggable').events('pointerup').compose(
-    sampleCombine(locationY$)
+    sampleCombine(locationY$, squarePosition$, showCircle$)
   ).subscribe({
-    next([, y]) {
-      springY$.update({ currentValue: y, endValue: destinationY });
+    next([event, locationY, squarePosition, showCircle]) {
+      springY$.update({
+        currentValue: locationY,
+        endValue: showCircle
+          ? 0
+          : squarePosition,
+      });
     }
   });
 
   const vtree$ = Stream.combine(
     locationY$,
     springCornerRadius$,
-    positionSliderDOM$,
+    squarePositionSliderDOM$,
     breakpointSliderDOM$,
   ).map(
     ([
       y,
       cornerRadius,
-      positionSliderDOM,
+      squarePositionSliderDOM,
       breakpointSliderDOM
     ]) => (
       <div
@@ -318,7 +357,7 @@ export function App({ DOM }: Sources): Sinks {
             }
           }
         >
-          { positionSliderDOM }
+          { squarePositionSliderDOM }
           { breakpointSliderDOM }
         </div>
       </div>
