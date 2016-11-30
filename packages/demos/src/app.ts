@@ -256,7 +256,14 @@ export function App({ DOM }: Sources): Sinks {
   ).compose(dropRepeats()).remember();
 
   // there appears to be a bug where prev and next are always equal, so wasCircle + !isSquare doesn't trigger
-  const showCircle$ = Stream.combine(isCircle$, isSquare$).compose(pairwise).map(
+  const showCircle$ = Stream.combine(
+    isCircle$,
+    isSquare$
+  ).map(
+    // `combine` recycles the same instance for every emission, so cache each
+    // value in its own array to enable comparisons in pairwise
+    (pair) => [...pair]
+  ).compose(pairwise).map(
     ([prev, next]) => {
       const [isCircle, isSquare] = next;
       const [wasCircle, wasSquare] = prev;
